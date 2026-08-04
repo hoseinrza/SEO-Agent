@@ -10,11 +10,11 @@ description: Method and scoring rubric for a full SEO audit — the six-step pro
 | مرحله | کار | ایجنت |
 | --- | --- | --- |
 | 1 | Intake: URL، حوزه، کشور، زبان، رقبا، اهداف | `seo-manager` |
-| 2 | Technical Audit | `technical-seo-auditor` |
-| 3 | Keyword Research + Clustering | `keyword-researcher` |
-| 4 | Competitor Analysis | `competitor-analyst` |
+| 2 | Technical Audit | `seo-specialist` |
+| 3 | Keyword Research + Clustering | `search-specialist` |
+| 4 | Competitor Analysis | `competitive-analyst` |
 | 5 | SEO Roadmap + Content Plan | `seo-manager`، `content-strategist` |
-| 6 | Weekly Monitoring | `seo-reporter` |
+| 6 | Weekly Monitoring | `technical-writer` |
 
 مرحله‌ی ۱ اختیاری نیست. کشور و زبان هدف، SERP را عوض می‌کنند؛ تحلیل بدون آن‌ها بی‌اعتبار است.
 
