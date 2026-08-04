@@ -77,6 +77,44 @@ Claude بر اساس درخواست، ایجنت مناسب را انتخاب م
 شده، ارجاع به بانک کیورد و قانون «داده‌ی ساختگی ممنوع» اضافه شده، چک‌لیست‌های عمومی هرس
 شده، و دانش تخصصی هر ایجنت زیر خط `## مرجع تخصصی` نگه داشته شده است.
 
+## گردش کار — از دامنه تا مقاله
+
+هفت فاز، هر ۱۹ ایجنت یک جای مشخص، و خروجی نهایی یک **brief آماده‌ی نوشتن به‌ازای هر مقاله**.
+
+| فاز | ایجنت‌ها | خروجی |
+| --- | --- | --- |
+| **۰. Intake** | `seo-manager` (+ `workflow-orchestrator`، `task-distributor`) | `project.json`: دامنه، کشور، زبان، اهداف |
+| **۱. تشخیص** _(موازی)_ | `seo-specialist` · `performance-engineer` · `accessibility-tester` · `data-analyst` | لیست مشکلات + SEO Health Score + رتبه‌های واقعی در بانک |
+| **۲. فرصت‌یابی** | `search-specialist` · `competitive-analyst` · `keyword-db-manager` | کیورد، cluster، content gap رقبا |
+| **۳. اصلاح زیرساخت** ⚠ | `frontend-developer` · `backend-developer` · `wordpress-master` | مشکلات بلاک‌کننده حل‌شده — **با تایید تو** |
+| **۴. جمع‌بندی** | `knowledge-synthesizer` · `content-strategist` | صف محتوا + تقویم |
+| **۵. حلقه‌ی مقاله** | هفت ایجنت، یک دور کامل به‌ازای **هر مقاله** | `projects/<slug>/content/NN-<slug>.md` |
+| **۶. اندازه‌گیری** | `technical-writer` · `data-analyst` · `prompt-engineer` | گزارش، roadmap، ورودی دور بعد |
+
+فاز ۳ عمداً قبل از تولید محتواست: انتشار مقاله روی سایتی که ایندکس نمی‌شود، هدر دادن بودجه است.
+
+### حلقه‌ی مقاله‌به‌مقاله (فاز ۵)
+
+به‌ازای هر مقاله یک بار کامل اجرا می‌شود:
+
+```
+search-specialist ──► SERP الان چه می‌گوید (نوع صفحه، intent، طول واقعی)
+competitive-analyst ► سه رقیب: چه دارند و کجا را جا انداخته‌اند
+content-strategist ─► outline، FAQ، لینک داخلی، تعداد کلمه
+frontend-developer ─► JSON-LD  (طبق docs/schema-guide.md)
+accessibility-tester► ترتیب heading، alt، متن لینک
+content-quality-editor ► گیت کیفیت روی brief، قبل از نوشتن
+link-building-analyst ─► برنامه‌ی لینک بیرونی
+                          │
+                          ▼
+        projects/<slug>/content/NN-<keyword-slug>.md
+```
+
+گیت کیفیت عمداً روی خود brief است نه فقط متن نهایی: ایراد ساختاری را وقتی brief است در
+ده دقیقه می‌شود درست کرد، وقتی ۲۰۰۰ کلمه نوشته شده نه.
+
+📄 **[گردش کار کامل با دستورها و قالب brief](docs/workflow.md)** · **[راهنمای اسکیما](docs/schema-guide.md)**
+
 ## نصب
 
 اختیاری است. با نصب، دستور `seodb` از هر مسیری در دسترس است:

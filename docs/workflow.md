@@ -1,41 +1,68 @@
-# گردش کار پروژه‌ی سئو
+# گردش کار پروژه‌ی سئو — از دامنه تا مقاله
 
-راهنمای عملی اینکه ایجنت‌ها چطور با هم و با بانک کیورد کار می‌کنند.
+راهنمای عملی اینکه ۱۹ ایجنت چطور با هم و با بانک کیورد کار می‌کنند تا کار از یک دامنه
+شروع شود و به **brief آماده‌ی نوشتن، مقاله‌به‌مقاله** برسد.
 
 ## نمای کلی
 
 ```
-کاربر
-  │
-  └── seo-manager ─────────── مالک پروژه، اولویت‌بندی، گزارش نهایی
-         │
-         │  ── تحلیل: مشکل را پیدا می‌کنند ──┐
-         ├── seo-specialist                  │
-         ├── search-specialist               │
-         ├── competitive-analyst             │
-         ├── performance-engineer            ├──► keyword-db-manager
-         ├── accessibility-tester            │            │
-         ├── data-analyst                    │            ▼
-         ├── content-strategist              │      بانک کیورد
-         ├── content-quality-editor          │   (تنها نویسنده‌ی دیتابیس)
-         └── link-building-analyst ──────────┘            │
-         │                                                │
-         │  ── اصلاح: فقط با تایید کاربر ──                │
-         ├── frontend-developer                           │
-         ├── backend-developer                            │
-         └── wordpress-master                             │
-         │                                                ▼
-         └── technical-writer ◄── knowledge-synthesizer ── می‌خواند از بانک
+        ورودی: دامنه + کشور + زبان + اهداف کسب‌وکار
+                          │
+   فاز ۰  ┌───────────────▼───────────────┐
+  Intake  │  seo-manager                  │ مالک پروژه؛ کل مسیر را می‌گرداند
+          │  workflow-orchestrator        │ فقط اگر مسیر استاندارد جواب ندهد
+          │  task-distributor             │ فقط اگر حجم کار زیاد باشد
+          └───────────────┬───────────────┘
+                          │
+   فاز ۱  ┌───────────────▼───────────────┐
+  تشخیص   │  seo-specialist               │ ┐
+ (موازی)  │  performance-engineer         │ ├─► لیست مشکلات + Health Score
+          │  accessibility-tester         │ │
+          │  data-analyst                 │ ┘ رتبه‌های واقعی از GSC → بانک
+          └───────────────┬───────────────┘
+                          │
+   فاز ۲  ┌───────────────▼───────────────┐
+ فرصت‌یابی │  search-specialist            │ کیورد، cluster، topic map
+          │  competitive-analyst          │ content gap رقبا
+          │  keyword-db-manager           │ سلامت بانک، cannibalization
+          └───────────────┬───────────────┘
+                          │
+   فاز ۳  ┌───────────────▼───────────────┐  ⚠ گیت: با تایید کاربر
+  اصلاح   │  frontend-developer           │
+ زیرساخت  │  backend-developer            │ مشکلات بلاک‌کننده حل شوند
+          │  wordpress-master             │ قبل از اینکه محتوا منتشر شود
+          └───────────────┬───────────────┘
+                          │
+   فاز ۴  ┌───────────────▼───────────────┐
+ جمع‌بندی  │  knowledge-synthesizer        │ ادغام یافته‌ها، حل تناقض
+          │  content-strategist           │ صف محتوا + تقویم
+          └───────────────┬───────────────┘
+                          │
+   فاز ۵  ┌───────────────▼───────────────┐
+  حلقه‌ی   │  برای هر مقاله، یک دور کامل:  │
+  مقاله   │  SERP → gap → brief → schema  │──► projects/<slug>/content/NN-<slug>.md
+          │  → کیفیت → لینک → ثبت در بانک │    (خروجی نهایی، یکی به‌ازای هر مقاله)
+          └───────────────┬───────────────┘
+                          │
+   فاز ۶  ┌───────────────▼───────────────┐
+  انتشار  │  technical-writer             │ گزارش و roadmap
+ و اندازه │  data-analyst                 │ اندازه‌گیری بعد از انتشار
+   گیری   │  prompt-engineer              │ اگر خود ایجنت‌ها بد کار کردند
+          └───────────────────────────────┘
 ```
 
-دو نکته‌ی کلیدی:
+## سه قاعده‌ای که در همه‌ی فازها برقرار است
 
-- **همه از یک منبع حقیقت می‌خوانند.** یافته‌ای که وارد بانک نشود، در گزارش هفته‌ی بعد
-  وجود نخواهد داشت.
-- **تحلیل و اصلاح جدا هستند.** ایجنت‌های توسعه فقط بعد از اینکه تحلیل مشکل را مشخص کرد و
-  کاربر تایید کرد وارد می‌شوند — تغییر کد بر اساس حدس، بدتر از نبود تغییر است.
+1. **همه از یک منبع حقیقت می‌خوانند.** یافته‌ای که وارد بانک کیورد نشود، در گزارش هفته‌ی
+   بعد وجود نخواهد داشت. `keyword-db-manager` نگهبان آن است.
+2. **تحلیل و اصلاح دو کار جدااند.** ایجنت‌های توسعه فقط بعد از اینکه تحلیل مشکل را مشخص
+   کرد و کاربر تایید کرد وارد می‌شوند. تغییر کد بر اساس حدس، بدتر از نبود تغییر است.
+3. **ساب‌ایجنت‌ها حافظه‌ی مشترک ندارند.** هر صدا زدن باید مسیر پروژه، دامنه، کشور، زبان و
+   محل نوشتن خروجی را همراه داشته باشد.
 
-## مرحله ۱ — Intake
+---
+
+## فاز ۰ — Intake
 
 ```bash
 python3 scripts/seodb.py --project projects/<slug> init \
@@ -43,77 +70,209 @@ python3 scripts/seodb.py --project projects/<slug> init \
   --country <IR> --language <fa> --goals "<اهداف کسب‌وکار>"
 ```
 
-بدون کشور و زبان هدف جلو نرو: SERP کشورهای مختلف متفاوت است و کل تحلیل کیورد
-به آن وابسته است.
+بدون کشور و زبان هدف جلو نرو: SERP کشورهای مختلف متفاوت است و کل تحلیل کیورد به آن
+وابسته است. اگر پروژه از قبل هست، این‌ها را از `project.json` بخوان و فقط موارد مفقود را بپرس.
 
-## مرحله ۲ — Technical Audit
+| ایجنت | کِی |
+| --- | --- |
+| `seo-manager` | همیشه — مالک پروژه است |
+| `workflow-orchestrator` | وقتی مسیر استاندارد جواب نمی‌دهد (مثلاً migration یا سایت چندزبانه) |
+| `task-distributor` | وقتی صدها صفحه یا هزاران کیورد در کار است |
 
-`seo-specialist` را با دامنه و مسیر پروژه صدا بزن. خروجی:
-لیست مشکلات با ساختار پنج‌جزئی + SEO Health Score.
+## فاز ۱ — تشخیص (موازی اجرا کن)
 
-صفحات کشف‌شده را ثبت کن تا بعداً بتوان صفحات بدون کیورد را پیدا کرد:
+این چهار به هم وابسته نیستند؛ هم‌زمان اجرایشان کن.
 
-```bash
-python3 scripts/seodb.py --project projects/<slug> page add <url> \
-  --title "<title>" --page-type <product|blog|category> --traffic <n>
-```
+| ایجنت | خروجی |
+| --- | --- |
+| `seo-specialist` | مشکلات فنی و on-page با severity + SEO Health Score |
+| `performance-engineer` | LCP/CLS/INP/TTFB در برابر آستانه‌های گوگل |
+| `accessibility-tester` | heading، alt، لینک، HTML معنایی |
+| `data-analyst` | رتبه و CTR واقعی از export سرچ کنسول |
 
-## مرحله ۳ — Keyword Research
-
-`search-specialist` اول جستجو می‌کند، بعد ثبت:
+صفحات کشف‌شده را ثبت کن تا بعداً صفحات بدون کیورد پیدا شوند:
 
 ```bash
 S="python3 scripts/seodb.py --project projects/<slug>"
-$S kw search "<term>"        # آیا مشابهش هست؟
+$S page add <url> --title "<title>" --page-type <product|blog|category> --traffic <n>
+$S kw check "<keyword>" --position <n> --url <ranking-url> --source gsc
+```
+
+## فاز ۲ — فرصت‌یابی
+
+```bash
+$S kw search "<term>"        # قبل از هر کیورد جدید: آیا مشابهش هست؟
 $S cluster add "<cluster>" --page <url> --intent <intent> --structure "<outline>"
-$S kw add "<keyword>" --intent <...> --cluster "<cluster>" --type Primary ...
+$S kw add "<keyword>" --intent <...> --cluster "<cluster>" --type Primary
+$S competitor add <competitor-domain> "<keyword>" --position <n> --url <url>
+$S audit                     # cannibalization، کیورد بدون cluster، مقادیر نامعتبر
 ```
 
-اگر CLI ثبت را رد کرد، یعنی کیورد از قبل هست — آن را به همان cluster نگاشت کن،
-نسخه‌ی دوم نساز.
+اگر CLI ثبت را رد کرد، یعنی کیورد از قبل هست — به همان cluster نگاشتش کن، نسخه‌ی دوم نساز.
+کیوردهای missing رقبا که ارزش دارند را به `search-specialist` بده تا ثبت شوند.
 
-## مرحله ۴ — Competitor Analysis
+## فاز ۳ — اصلاح زیرساخت ⚠ گیت
+
+**قبل از تولید محتوا.** انتشار مقاله روی سایتی که ایندکس نمی‌شود یا ۸ ثانیه لود می‌شود،
+هدر دادن بودجه است.
+
+فقط مشکلاتی که تولید محتوا را بی‌اثر می‌کنند در این فاز حل می‌شوند: مانع ایندکس،
+redirect شکسته، TTFB بحرانی، محتوای رندرنشده. بقیه به roadmap می‌روند.
+
+| ایجنت | حوزه |
+| --- | --- |
+| `frontend-developer` | HTML، meta، canonical، JSON-LD، رندر کلاینت |
+| `backend-developer` | SSR، کد وضعیت، redirect، sitemap، TTFB |
+| `wordpress-master` | فقط اگر تایید شده سایت وردپرسی است |
+
+هر تغییری که روی URL اثر دارد، **قبل از اجرا** هشدار + نقشه‌ی 301 می‌خواهد.
+
+## فاز ۴ — جمع‌بندی و ساختن صف محتوا
+
+`knowledge-synthesizer` خروجی فازهای ۱ و ۲ را یکی می‌کند: موارد تکراری ادغام، تناقض‌ها
+روشن. بعد `content-strategist` صف محتوا را از بانک می‌سازد — **به این ترتیب، نه به ترتیب
+جذابیت موضوع**:
+
+1. **Refresh قبل از تولید** — رتبه‌ی ۱۱-۲۰ با چند ساعت کار به صفحه‌ی اول می‌رسد؛ مقاله‌ی
+   جدید ماه‌ها طول می‌کشد. (`$S report content`)
+2. **کیوردهای تجاری بدون صفحه** — نزدیک‌ترین محتوا به درآمد.
+3. **تکمیل clusterهای ناقص** — cluster نیمه‌کاره اعتبار موضوعی نمی‌سازد.
+4. **Content gap رقبا.**
+5. **Question keywords** — ارزان، سریع، مناسب featured snippet.
 
 ```bash
-$S competitor add <competitor-domain> "<keyword>" --position <n> --volume <n> --url <url>
-$S report competitors
-```
-
-کیوردهای missing که ارزش دارند را به `search-specialist` بده تا در بانک ثبت شوند.
-
-## مرحله ۵ — Roadmap و Content Plan
-
-```bash
-$S audit                 # ورودی بخش Immediate Actions
 $S report roadmap        # پیش‌نویس سه‌افقی از داده
+$S kw list --status New --priority High
 ```
 
-`seo-manager` خروجی خودکار را بازبینی می‌کند: ترتیب را با Impact تجاری تنظیم می‌کند و
-به هر آیتم مالک، مهلت و معیار موفقیت اضافه می‌کند.
+خروجی این فاز یک تقویم است:
 
-`content-strategist` برای هر کیورد در صف، brief می‌نویسد و وضعیت را جلو می‌برد:
+```markdown
+| هفته | مقاله | کیورد هدف | نوع | Cluster | مسئول | اولویت |
+```
+
+واقع‌بین باش: ظرفیت تیم را بپرس. تقویمی که هفته‌ای ۵ مقاله می‌خواهد و تیم یک‌نفره است،
+اجرا نمی‌شود.
+
+---
+
+## فاز ۵ — حلقه‌ی مقاله‌به‌مقاله (خروجی نهایی)
+
+**این فاز به‌ازای هر مقاله یک بار کامل اجرا می‌شود.** هفت قدم زیر یک دور کامل‌اند و
+خروجی‌شان یک فایل است در:
+
+```
+projects/<slug>/content/NN-<keyword-slug>.md
+```
+
+| قدم | ایجنت | چه می‌آورد |
+| --- | --- | --- |
+| ۱ | `search-specialist` | SERP همین کیورد الان: چه نوع صفحه‌ای رتبه دارد، intent واقعی، طول محتوای رقبا |
+| ۲ | `competitive-analyst` | سه صفحه‌ی رتبه‌دار: چه پوشش داده‌اند، **کجا را جا انداخته‌اند** |
+| ۳ | `content-strategist` | خود brief: outline، FAQ، لینک داخلی، تعداد کلمه |
+| ۴ | `frontend-developer` | JSON-LD مقاله — طبق [راهنمای اسکیما](schema-guide.md) |
+| ۵ | `accessibility-tester` | الزامات ساختاری: ترتیب heading، alt تصاویر، متن لینک |
+| ۶ | `content-quality-editor` | **گیت کیفیت روی خود brief، قبل از نوشتن** — و بعداً روی پیش‌نویس |
+| ۷ | `link-building-analyst` | برنامه‌ی لینک بیرونی برای همین مقاله (اگر صفحه‌ی درآمدزاست) |
+
+قدم ۶ عمداً روی brief است نه فقط روی متن نهایی: ایراد ساختاری را وقتی brief است در ده
+دقیقه می‌شود درست کرد، وقتی ۲۰۰۰ کلمه نوشته شده نه.
+
+### قالب خروجی هر مقاله
+
+```markdown
+# Brief: <عنوان کاری>
+
+> وضعیت: Planned | Writing | Published — تاریخ: YYYY-MM-DD
+
+## ۱. هدف
+- **Target keyword:** <primary kw> — volume: <n | source: needed>، KD: <n | source: needed>
+- **Secondary keywords:** <از همان cluster>
+- **Questions to answer:** <question keywords>
+- **Search intent:** <informational | commercial | transactional | navigational>
+- **Cluster:** <نام cluster>
+- **Target URL:** <مسیر پیشنهادی>
+- **Content type:** مقاله | مقایسه | راهنما | لندینگ | صفحه‌ی محصول
+- **CTA:** <اقدام تجاری موردنظر>
+
+## ۲. SERP الان چه می‌گوید  ← search-specialist
+- نوع صفحاتی که رتبه دارند: <لیست/مقایسه/محصول/ویدیو>
+- ویژگی‌های SERP: <featured snippet | People Also Ask | تصاویر | ویدیو>
+- میانگین طول ۵ نتیجه‌ی برتر: <n کلمه>  ← مبنای Word count، نه عدد دلخواه
+
+## ۳. رقبا چه دارند و چه ندارند  ← competitive-analyst
+| رقیب | رتبه | چه پوشش داده | چه جا انداخته |
+| --- | --- | --- | --- |
+
+**زاویه‌ی برد ما:** <آن چیزی که هیچ‌کدام ندارند و ما می‌توانیم بدهیم>
+
+## ۴. ساختار  ← content-strategist
+- **Word count target:** <بر اساس بخش ۲>
+- **H1:** ...
+- **H2:** ... _(کدام کیورد را پوشش می‌دهد)_
+  - H3: ...
+- **H2:** ...
+- **FAQ:** <پرسش‌ها از People Also Ask و question keywords>
+- **Must include:** <جدول، داده، تصویر، مثال محلی، ابزار>
+- **نباید:** <چیزی که رقبا دارند و ارزشی ندارد؛ یا ادعایی که نمی‌توانیم پشتیبانی کنیم>
+
+## ۵. اسکیما  ← frontend-developer
+نوع: <Article | FAQPage | HowTo | Product | BreadcrumbList>
+راهنما: `docs/schema-guide.md`
+
+```json
+{ "@context": "https://schema.org", "@type": "Article", ... }
+```
+
+## ۶. الزامات ساختاری  ← accessibility-tester
+- ترتیب heading بدون پرش (h1 → h2 → h3)
+- alt هر تصویر: توصیفی، نه انباشت کیورد
+- متن لینک‌ها خودتوضیح باشد («اینجا کلیک کنید» ممنوع)
+
+## ۷. لینک‌ها
+- **Internal links out:** <۳-۵ صفحه‌ی هم‌cluster + anchor پیشنهادی>
+- **Internal links in:** <کدام صفحات موجود باید به این لینک دهند>  ← بدون این، صفحه orphan است
+- **External / outreach:** <برنامه‌ی لینک بیرونی>  ← link-building-analyst
+
+## ۸. گیت کیفیت  ← content-quality-editor
+- [ ] عمق در برابر سه صفحه‌ی رتبه‌دار
+- [ ] سیگنال EEAT: نویسنده، منبع، تجربه‌ی واقعی
+- [ ] هر ادعای عددی منبع دارد
+- [ ] بخش نازک یا تکراری ندارد
+- [ ] برای موضوع YMYL: بازبینی متخصص الزامی است
+
+## ۹. یادداشت نویسنده
+<لحن، مخاطب، چیزی که نباید گفته شود>
+```
+
+### ثبت در بانک، در همان دور
 
 ```bash
-$S kw update "<kw>" --status Writing --url <target-url>
+$S kw update "<kw>" --status Writing --url <target-url> --content-type "<type>"
+# بعد از انتشار:
 $S kw update "<kw>" --status Published
+$S page add <target-url> --title "<title>" --page-type blog --primary-keyword "<kw>"
 ```
 
-## مرحله ۶ — Weekly Monitoring
+مقاله‌ای که در بانک ثبت نشود، در گزارش هفته‌ی بعد وجود ندارد و رتبه‌اش ردیابی نمی‌شود.
 
-هر هفته:
+---
+
+## فاز ۶ — انتشار، اندازه‌گیری، تکرار
 
 ```bash
-# ۱. ثبت رتبه‌های جدید (برای هر کیورد ردیابی‌شده)
-$S kw check "<kw>" --position <n> --url <ranking-url> --source gsc
-
-# ۲. سلامت دیتابیس
+$S kw check "<kw>" --position <n> --url <ranking-url> --source gsc   # هر هفته
 $S audit
-
-# ۳. گزارش
 $S report weekly --days 7 --out auto
 ```
 
-بعد `technical-writer` تفسیر می‌کند: چه شد، چرا، یعنی چه، حالا چه کنیم.
+`technical-writer` تفسیر می‌کند: چه شد، چرا، یعنی چه، حالا چه کنیم. `data-analyst`
+عدد واقعی را از export می‌آورد. اگر ایجنتی مدام اشتباه صدا زده می‌شود، `prompt-engineer`
+تعریفش را اصلاح می‌کند.
+
+**نتیجه‌ی اندازه‌گیری به فاز ۴ برمی‌گردد:** مقاله‌ای که بعد از ۸ هفته در رتبه‌ی ۱۵ گیر کرده،
+کاندید refresh است — یعنی دوباره وارد صف محتوا می‌شود، این بار با اولویت بالاتر از یک
+مقاله‌ی جدید.
 
 ## چرخه‌ی وضعیت کیورد
 
@@ -132,7 +291,9 @@ New ──► Planned ──► Writing ──► Published ──► Ranking �
 | --- | --- | --- |
 | ویرایش دستی CSV | قوانین دور زده می‌شوند و تاریخچه خراب می‌شود | همیشه از CLI |
 | `--force` برای عبور از هشدار تشابه | مسیر مستقیم به cannibalization | نگاشت به cluster موجود |
-| پر کردن حجم جستجو با حدس | اولویت‌بندی را مسموم می‌کند | خالی بگذار + `volume: needed` |
+| پر کردن حجم جستجو با حدس | اولویت‌بندی را مسموم می‌کند | خالی بگذار + `source: needed` |
 | حذف سطر تاریخچه | تشخیص افت رتبه غیرممکن می‌شود | تاریخچه فقط append |
+| نوشتن مقاله قبل از فاز ۳ | محتوای خوب روی سایت خراب، هدر رفتن بودجه | اول گیت زیرساخت |
+| brief بدون بخش «رقبا چه جا انداخته‌اند» | مقاله‌ی چهارمِ شبیه سه تای قبلی | قدم ۲ فاز ۵ را رد نکن |
 | گزارش نوسان ۲-۳ پله به‌عنوان نتیجه | نویز را سیگنال جا می‌زند | چند هفته صبر |
 | پیشنهاد تغییر URL بدون هشدار | ریسک از دست رفتن ترافیک | هشدار + نقشه‌ی 301 |
