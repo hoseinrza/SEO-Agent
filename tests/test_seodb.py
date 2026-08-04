@@ -4,21 +4,37 @@ Run: python3 -m unittest discover -s tests -v
 """
 
 import contextlib
+import glob
 import io
+import multiprocessing
 import os
 import shutil
 import sys
 import tempfile
 import unittest
 from datetime import date, timedelta
+from unittest import mock
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 import seodb  # noqa: E402
+from bench_similarity import synthetic_keywords  # noqa: E402
 
 
 def days_ago(n: int) -> str:
     return (date.today() - timedelta(days=n)).isoformat()
+
+
+def cli_worker(root: str, argv: list, barrier=None) -> None:
+    """Run one seodb command in a separate process, optionally in lockstep.
+
+    Module level so it survives pickling under the 'spawn' start method.
+    """
+    if barrier is not None:
+        barrier.wait()
+    with open(os.devnull, "w") as devnull, contextlib.redirect_stdout(devnull):
+        seodb.main(["--project", root, *argv])
 
 
 class DBTestCase(unittest.TestCase):
@@ -406,6 +422,185 @@ class TestCLIWrapper(DBTestCase):
         self.cli("kw", "add", "laptop bag")  # no cluster -> a finding
         code = self.main("audit", "--strict")
         self.assertEqual(code, 1)
+
+
+class TestConcurrentWrites(DBTestCase):
+    """The manager runs subagents in parallel — parallel writes must not lose rows."""
+
+    KEYWORDS = ["laptop", "coffee", "bicycle", "guitar", "notebook", "camera", "printer", "umbrella"]
+
+    def run_workers(self, workers, timeout=60):
+        for worker in workers:
+            worker.start()
+        try:
+            for worker in workers:
+                worker.join(timeout=timeout)
+                self.assertFalse(worker.is_alive(), "a parallel seodb command never finished")
+        finally:
+            for worker in workers:
+                if worker.is_alive():
+                    worker.terminate()
+
+    def test_parallel_kw_add_keeps_every_row(self):
+        barrier = multiprocessing.Barrier(len(self.KEYWORDS))
+        self.run_workers(
+            [
+                multiprocessing.Process(target=cli_worker, args=(self.root, ["kw", "add", kw], barrier))
+                for kw in self.KEYWORDS
+            ]
+        )
+        stored = [row["keyword"] for row in self.keywords()]
+        self.assertEqual(sorted(stored), sorted(self.KEYWORDS))
+        self.assertEqual(len(stored), len(set(stored)), "a keyword was written twice")
+
+    def test_parallel_writes_to_different_tables_do_not_block_each_other(self):
+        # The lock is per table, so holding the keyword bank must leave the page
+        # table writable — otherwise parallel subagents would serialise on
+        # everything, and one long keyword run would stall all the others.
+        with seodb.locked(self.root, "keywords"):
+            self.run_workers(
+                [multiprocessing.Process(target=cli_worker, args=(self.root, ["page", "add", "/bags"]))],
+                timeout=20,
+            )
+        self.assertEqual(len(seodb.read_rows(self.root, "pages")), 1)
+
+
+class TestAtomicWrite(DBTestCase):
+    def test_write_leaves_no_temporary_files_behind(self):
+        self.cli("kw", "add", "laptop bag")
+        self.assertEqual(glob.glob(os.path.join(self.root, ".seodb-*")), [])
+
+    def raw(self) -> str:
+        with open(os.path.join(self.root, "keywords.csv"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_a_failed_write_leaves_the_previous_table_intact(self):
+        self.cli("kw", "add", "laptop bag")
+        before = self.raw()
+
+        rows = self.keywords() + [{"keyword": "coffee machine"}]
+        with mock.patch.object(seodb, "escape_cell", side_effect=RuntimeError("disk full")):
+            with self.assertRaises(RuntimeError):
+                seodb.write_rows(self.root, "keywords", rows)
+
+        self.assertEqual(self.raw(), before)
+        self.assertEqual(glob.glob(os.path.join(self.root, ".seodb-*")), [])
+
+
+class TestCSVInjection(DBTestCase):
+    """Values a spreadsheet would execute are quoted on disk, never in the data."""
+
+    def raw(self, name="keywords.csv") -> str:
+        with open(os.path.join(self.root, name), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_formula_keyword_is_quoted_on_disk_but_clean_when_read(self):
+        self.cli("kw", "add", "=1+1")
+        self.assertIn("'=1+1", self.raw())
+        self.assertEqual(self.keywords()[0]["keyword"], "=1+1")
+
+    def test_every_risky_prefix_is_neutralised(self):
+        for value in ("=cmd()", "+1", "-1", "@SUM(A1)"):
+            with self.subTest(value=value):
+                self.assertEqual(seodb.escape_cell(value), "'" + value)
+                self.assertEqual(seodb.unescape_cell("'" + value), value)
+
+    def test_formula_note_is_quoted(self):
+        self.cli("kw", "add", "laptop bag", "--notes", "=HYPERLINK(\"http://evil\",\"click\")")
+        self.assertIn("'=HYPERLINK", self.raw())
+        self.assertEqual(self.keywords()[0]["notes"], '=HYPERLINK("http://evil","click")')
+
+    def test_ordinary_values_are_untouched(self):
+        self.cli("kw", "add", "laptop bag", "--notes", "checked in GSC")
+        self.assertNotIn("'", self.raw())
+
+    def test_a_value_that_really_starts_with_a_quote_round_trips(self):
+        self.assertEqual(seodb.unescape_cell(seodb.escape_cell("'=1+1")), "'=1+1")
+        self.assertEqual(seodb.unescape_cell(seodb.escape_cell("'quoted'")), "'quoted'")
+
+    def test_quoting_does_not_leak_into_matching_or_reporting(self):
+        self.cli("kw", "add", "=1+1", "--url", "/calc")
+        self.cli("kw", "check", "=1+1", "--position", "7")
+        self.assertEqual(self.keywords()[0]["current_position"], "7")
+        self.assertEqual(self.history()[0]["keyword"], "=1+1")
+        self.assertIn("| =1+1 |", seodb.keyword_table(self.keywords()))
+
+    def test_history_and_competitor_tables_are_escaped_too(self):
+        self.cli("competitor", "add", "rival.com", "laptop bag", "--notes", "@evil")
+        self.assertIn("'@evil", self.raw("competitors.csv"))
+        self.assertEqual(seodb.read_rows(self.root, "competitors")[0]["notes"], "@evil")
+
+
+class TestKeywordIndex(unittest.TestCase):
+    """Blocking must only skip comparisons that could not have matched."""
+
+    CORPUS = [
+        "خرید یخچال ساید بای ساید",
+        "خرید یخچال سایدبای‌ساید",
+        "قیمت یخچال ساید بای ساید",
+        "یخچال فریزر دوقلو",
+        "بهترین یخچال ساید بای ساید",
+        "یخچال ساید بای ساید سامسونگ",
+        "laptop bag",
+        "laptop bags",
+        "leather laptop bag",
+        "coffee machine",
+        "best coffee machine",
+        "چگونه یخچال بخریم",
+        "نیم‌فاصله",
+        "نیم فاصله",
+        "کيف لپتاپ",
+        "کیف لپ تاپ",
+    ]
+
+    def brute_force(self, keywords, threshold):
+        return [
+            (i, j, seodb.similarity(a, b))
+            for i, a in enumerate(keywords)
+            for j, b in enumerate(keywords)
+            if i < j and seodb.similarity(a, b) >= threshold
+        ]
+
+    def test_pairs_match_the_exhaustive_scan(self):
+        for threshold in (0.0, 0.3, 0.5, 0.7, 0.8, 0.9):
+            with self.subTest(threshold=threshold):
+                index = seodb.KeywordIndex(self.CORPUS, threshold)
+                self.assertEqual(list(index.pairs()), self.brute_force(self.CORPUS, threshold))
+
+    def test_matches_find_the_same_keywords_as_an_exhaustive_scan(self):
+        for threshold in (0.5, 0.7, 0.8):
+            index = seodb.KeywordIndex(self.CORPUS, threshold)
+            for term in self.CORPUS + ["خرید یخچال", "laptop", "قهوه ساز"]:
+                with self.subTest(threshold=threshold, term=term):
+                    expected = [
+                        (i, seodb.similarity(term, kw))
+                        for i, kw in enumerate(self.CORPUS)
+                        if seodb.similarity(term, kw) >= threshold
+                    ]
+                    self.assertEqual(index.matches(term), expected)
+
+    def test_pairs_match_the_exhaustive_scan_on_a_generated_bank(self):
+        # The hand-written corpus above is small enough to reason about; this one
+        # is 300 generated Persian keywords with shared head terms and a slice of
+        # ZWNJ spelling variants — the shape blocking is most likely to get wrong.
+        keywords = synthetic_keywords(300)
+        for threshold in (0.7, 0.8):
+            with self.subTest(threshold=threshold):
+                index = seodb.KeywordIndex(keywords, threshold)
+                self.assertEqual(list(index.pairs()), self.brute_force(keywords, threshold))
+
+    def test_spelling_variants_are_still_found_across_a_large_bank(self):
+        # A common head term in every keyword is exactly the case blocking has to
+        # survive: the shared token is too common to be useful, so the n-gram
+        # bucket has to carry the match.
+        corpus = [f"یخچال مدل {n}" for n in range(300)] + ["کیف لپتاپ", "کیف لپ تاپ"]
+        index = seodb.KeywordIndex(corpus, 0.8)
+        pairs = [(corpus[i], corpus[j]) for i, j, _ in index.pairs()]
+        self.assertIn(("کیف لپتاپ", "کیف لپ تاپ"), pairs)
+
+    def test_empty_bank_is_handled(self):
+        self.assertEqual(list(seodb.KeywordIndex([], 0.8).pairs()), [])
+        self.assertEqual(seodb.KeywordIndex([], 0.8).matches("laptop"), [])
 
 
 class TestUpdate(DBTestCase):

@@ -1,0 +1,38 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A branch with an open pull request would otherwise be tested twice per push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # No dependencies to install — seodb is standard-library only, and the
+      # test run stays that way on purpose.
+      - name: Run the database rule tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Check the package installs and the console script works
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e .
+          seodb --project "${RUNNER_TEMP}/ci-project" init --domain example.com
+          seodb --project "${RUNNER_TEMP}/ci-project" kw add "laptop bag" --cluster bags --url /bags
+          seodb --project "${RUNNER_TEMP}/ci-project" audit --strict

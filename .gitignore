@@ -1,2 +1,11 @@
 __pycache__/
 *.pyc
+
+# Editable install / build artefacts
+*.egg-info/
+build/
+dist/
+
+# seodb lock sidecars and interrupted atomic writes
+*.csv.lock
+.seodb-*.tmp

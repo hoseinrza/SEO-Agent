@@ -7,20 +7,33 @@
 ```
 کاربر
   │
-  ├── seo-manager  ─────────────── مالک پروژه، اولویت‌بندی، گزارش نهایی
-  │      │
-  │      ├── technical-seo-auditor ──┐
-  │      ├── keyword-researcher ─────┤
-  │      ├── competitor-analyst ─────┤──► keyword-db-manager ──► بانک کیورد
-  │      ├── onpage-seo-analyst ─────┤         (تنها نویسنده‌ی دیتابیس)
-  │      ├── content-strategist ─────┤
-  │      └── link-building-analyst ──┘
-  │
-  └── seo-reporter ─────────────── می‌خواند از بانک، گزارش می‌سازد
+  └── seo-manager ─────────── مالک پروژه، اولویت‌بندی، گزارش نهایی
+         │
+         │  ── تحلیل: مشکل را پیدا می‌کنند ──┐
+         ├── seo-specialist                  │
+         ├── search-specialist               │
+         ├── competitive-analyst             │
+         ├── performance-engineer            ├──► keyword-db-manager
+         ├── accessibility-tester            │            │
+         ├── data-analyst                    │            ▼
+         ├── content-strategist              │      بانک کیورد
+         ├── content-quality-editor          │   (تنها نویسنده‌ی دیتابیس)
+         └── link-building-analyst ──────────┘            │
+         │                                                │
+         │  ── اصلاح: فقط با تایید کاربر ──                │
+         ├── frontend-developer                           │
+         ├── backend-developer                            │
+         └── wordpress-master                             │
+         │                                                ▼
+         └── technical-writer ◄── knowledge-synthesizer ── می‌خواند از بانک
 ```
 
-نکته‌ی کلیدی: همه از یک منبع حقیقت می‌خوانند. یافته‌ای که وارد بانک نشود، در گزارش
-هفته‌ی بعد وجود نخواهد داشت.
+دو نکته‌ی کلیدی:
+
+- **همه از یک منبع حقیقت می‌خوانند.** یافته‌ای که وارد بانک نشود، در گزارش هفته‌ی بعد
+  وجود نخواهد داشت.
+- **تحلیل و اصلاح جدا هستند.** ایجنت‌های توسعه فقط بعد از اینکه تحلیل مشکل را مشخص کرد و
+  کاربر تایید کرد وارد می‌شوند — تغییر کد بر اساس حدس، بدتر از نبود تغییر است.
 
 ## مرحله ۱ — Intake
 
@@ -35,7 +48,7 @@ python3 scripts/seodb.py --project projects/<slug> init \
 
 ## مرحله ۲ — Technical Audit
 
-`technical-seo-auditor` را با دامنه و مسیر پروژه صدا بزن. خروجی:
+`seo-specialist` را با دامنه و مسیر پروژه صدا بزن. خروجی:
 لیست مشکلات با ساختار پنج‌جزئی + SEO Health Score.
 
 صفحات کشف‌شده را ثبت کن تا بعداً بتوان صفحات بدون کیورد را پیدا کرد:
@@ -47,7 +60,7 @@ python3 scripts/seodb.py --project projects/<slug> page add <url> \
 
 ## مرحله ۳ — Keyword Research
 
-`keyword-researcher` اول جستجو می‌کند، بعد ثبت:
+`search-specialist` اول جستجو می‌کند، بعد ثبت:
 
 ```bash
 S="python3 scripts/seodb.py --project projects/<slug>"
@@ -66,7 +79,7 @@ $S competitor add <competitor-domain> "<keyword>" --position <n> --volume <n> --
 $S report competitors
 ```
 
-کیوردهای missing که ارزش دارند را به `keyword-researcher` بده تا در بانک ثبت شوند.
+کیوردهای missing که ارزش دارند را به `search-specialist` بده تا در بانک ثبت شوند.
 
 ## مرحله ۵ — Roadmap و Content Plan
 
@@ -100,7 +113,7 @@ $S audit
 $S report weekly --days 7 --out auto
 ```
 
-بعد `seo-reporter` تفسیر می‌کند: چه شد، چرا، یعنی چه، حالا چه کنیم.
+بعد `technical-writer` تفسیر می‌کند: چه شد، چرا، یعنی چه، حالا چه کنیم.
 
 ## چرخه‌ی وضعیت کیورد
 

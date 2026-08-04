@@ -24,13 +24,22 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import csv
 import json
+import math
 import os
 import re
 import sys
+import tempfile
+from collections import Counter
 from datetime import date, datetime, timedelta
 from difflib import SequenceMatcher
+
+try:  # POSIX advisory locking; absent on Windows.
+    import fcntl
+except ImportError:  # pragma: no cover - platform dependent
+    fcntl = None
 
 # --------------------------------------------------------------------------
 # Schema
@@ -153,6 +162,49 @@ def tokens(text: str) -> set:
 SPELLING_VARIANT_RATIO = 0.92
 
 
+def flatten(text: str) -> str:
+    """The space-stripped normalised form used for character-level comparison."""
+    return normalize(text).replace(" ", "")
+
+
+class Form:
+    """A keyword reduced to everything ``score_forms`` needs, computed once.
+
+    Normalising is not cheap, and the old pairwise scan redid it four times for
+    every comparison. Keeping the folded form next to the keyword is most of the
+    speed-up; the blocking index below is the rest.
+    """
+
+    __slots__ = ("tokens", "flat", "chars")
+
+    def __init__(self, keyword: str):
+        self.tokens = tokens(keyword)
+        self.flat = flatten(keyword)
+        self.chars = Counter(self.flat)
+
+
+def score_forms(a: Form, b: Form) -> float:
+    """``similarity`` over two prepared forms — see ``similarity``."""
+    if not a.tokens or not b.tokens:
+        return 0.0
+    jaccard = len(a.tokens & b.tokens) / len(a.tokens | b.tokens)
+    if jaccard >= 1.0:
+        return 1.0
+
+    # SequenceMatcher.ratio() is 2*matched/(len_a+len_b) and matched characters
+    # are a common subsequence, so both the lengths and the shared character
+    # counts cap the ratio. Those two bounds are far cheaper than running the
+    # matcher, and they rule out nearly every pair before it gets that far.
+    total = len(a.flat) + len(b.flat)
+    if not total or 2 * min(len(a.flat), len(b.flat)) / total < SPELLING_VARIANT_RATIO:
+        return jaccard
+    if 2 * sum((a.chars & b.chars).values()) / total < SPELLING_VARIANT_RATIO:
+        return jaccard
+
+    chars = SequenceMatcher(None, a.flat, b.flat).ratio()
+    return max(jaccard, chars) if chars >= SPELLING_VARIANT_RATIO else jaccard
+
+
 def similarity(a: str, b: str) -> float:
     """How much two keywords overlap, on a 0..1 scale.
 
@@ -161,13 +213,124 @@ def similarity(a: str, b: str) -> float:
     reader would consider identical. So a very high character-level ratio on the
     space-stripped forms also counts as a match.
     """
-    ta, tb = tokens(a), tokens(b)
-    if not ta or not tb:
-        return 0.0
-    jaccard = len(ta & tb) / len(ta | tb)
-    flat_a, flat_b = normalize(a).replace(" ", ""), normalize(b).replace(" ", "")
-    chars = SequenceMatcher(None, flat_a, flat_b).ratio()
-    return max(jaccard, chars if chars >= SPELLING_VARIANT_RATIO else 0.0)
+    return score_forms(Form(a), Form(b))
+
+
+#: Size of the character n-grams used to block spelling variants.
+NGRAM = 3
+
+#: Share of a keyword's n-grams that may be ignored when blocking. Two forms at
+#: the spelling-variant bar differ by at most ~15% of their characters (the
+#: length gate in ``score_forms`` guarantees it), and each differing character
+#: can break at most ``NGRAM`` n-grams, so they still share well over half of
+#: them. Dropping the most common third is therefore safe — and it is exactly
+#: the third that would otherwise put every keyword of a niche in one bucket.
+NGRAM_SLACK = 0.35
+
+
+def ngrams(flat: str) -> set:
+    """Character n-grams of a flattened keyword, used as blocking keys."""
+    if not flat:
+        return set()
+    if len(flat) <= NGRAM:
+        return {flat}
+    return {flat[i : i + NGRAM] for i in range(len(flat) - NGRAM + 1)}
+
+
+class KeywordIndex:
+    """Finds similar keywords without comparing every pair against every other.
+
+    Both halves of ``similarity`` need the two keywords to share something
+    concrete: a Jaccard score of *t* is impossible without sharing a token, and a
+    character ratio at the spelling-variant bar is impossible without sharing an
+    n-gram. So keywords are bucketed by token and by n-gram, and only the
+    keywords that land in a shared bucket are actually scored.
+
+    Buckets are trimmed by the standard prefix filter: keys are ordered rarest
+    first and only the leading ones are indexed. Two sets that must overlap by
+    *k* elements always collide inside their first ``len - k + 1`` keys, so the
+    trimming drops comparisons, never matches. The result is the same set of
+    pairs the old O(n²) scan produced — it just does not look at the pairs that
+    could not possibly have scored.
+    """
+
+    def __init__(self, keywords: list, threshold: float):
+        self.threshold = threshold
+        self.keywords = list(keywords)
+        self.forms = [Form(k) for k in self.keywords]
+
+        self.token_rank = Counter()
+        self.ngram_rank = Counter()
+        for entry in self.forms:
+            self.token_rank.update(entry.tokens)
+            self.ngram_rank.update(ngrams(entry.flat))
+
+        self.by_token, self.by_ngram = {}, {}
+        for i, entry in enumerate(self.forms):
+            for key in self._token_prefix(entry.tokens):
+                self.by_token.setdefault(key, []).append(i)
+            for key in self._ngram_prefix(ngrams(entry.flat)):
+                self.by_ngram.setdefault(key, []).append(i)
+
+    # -- blocking keys ----------------------------------------------------
+    def _prefix(self, keys: set, rank: Counter, keep: int) -> list:
+        return sorted(keys, key=lambda k: (rank[k], k))[: max(keep, 1)]
+
+    def _token_prefix(self, toks: set) -> list:
+        """Tokens that must be indexed for any pair scoring >= threshold."""
+        if not toks:
+            return []
+        overlap = math.ceil(self.threshold * len(toks))
+        return self._prefix(toks, self.token_rank, len(toks) - overlap + 1)
+
+    def _ngram_prefix(self, grams: set) -> list:
+        if not grams:
+            return []
+        return self._prefix(grams, self.ngram_rank, math.ceil(len(grams) * (1 - NGRAM_SLACK)) + 1)
+
+    def _candidates(self, entry: Form) -> set:
+        found = set()
+        for key in self._token_prefix(entry.tokens):
+            found.update(self.by_token.get(key, ()))
+        for key in self._ngram_prefix(ngrams(entry.flat)):
+            found.update(self.by_ngram.get(key, ()))
+        return found
+
+    # -- queries ----------------------------------------------------------
+    def _brute_force(self) -> bool:
+        # A threshold of zero asks for every pair, including those with nothing
+        # in common — no blocking scheme can shortcut that.
+        return self.threshold <= 0
+
+    def matches(self, keyword: str) -> list:
+        """``(index, score)`` for every indexed keyword scoring >= threshold."""
+        entry = Form(keyword)
+        candidates = (
+            range(len(self.forms)) if self._brute_force() else sorted(self._candidates(entry))
+        )
+        hits = []
+        for i in candidates:
+            score = score_forms(entry, self.forms[i])
+            if score >= self.threshold:
+                hits.append((i, score))
+        return hits
+
+    def pairs(self):
+        """``(i, j, score)`` for every indexed pair scoring >= threshold, i < j.
+
+        Emitted in the same order the old nested loop used, so reports built on
+        top of it keep their ordering.
+        """
+        for i, entry in enumerate(self.forms):
+            candidates = (
+                range(i + 1, len(self.forms))
+                if self._brute_force()
+                else sorted(j for j in self._candidates(entry) if j > i)
+            )
+            for j in candidates:
+                score = score_forms(entry, self.forms[j])
+                if score >= self.threshold:
+                    yield i, j, score
 
 
 def is_question(kw: str) -> bool:
@@ -222,29 +385,98 @@ def path_for(root: str, kind: str) -> str:
     return os.path.join(root, FILES[kind][0])
 
 
+#: A leading one of these turns a CSV cell into a formula in Excel and Google
+#: Sheets, so values are quoted on the way out (OWASP CSV-injection guidance)
+#: and unquoted on the way back in. The database only ever sees the real value.
+FORMULA_PREFIXES = frozenset("=+-@\t\r")
+
+
+def is_formula(text: str) -> bool:
+    return text.lstrip("'")[:1] in FORMULA_PREFIXES if text else False
+
+
+def escape_cell(value) -> str:
+    """Neutralise a value that a spreadsheet would otherwise run as a formula."""
+    text = "" if value is None else str(value)
+    return "'" + text if is_formula(text) else text
+
+
+def unescape_cell(value):
+    """Inverse of ``escape_cell`` — applied to everything read back."""
+    if isinstance(value, str) and value.startswith("'") and is_formula(value):
+        return value[1:]
+    return value
+
+
+@contextlib.contextmanager
+def locked(root: str, kind: str):
+    """Hold an exclusive lock on one table for a read-modify-write cycle.
+
+    The seo-manager runs specialist subagents in parallel, so two of them can
+    reach ``kw add`` at the same moment; without this the second write would be
+    built on a snapshot taken before the first and would silently drop its row.
+
+    The lock lives in a sidecar file rather than on the CSV itself: ``write_rows``
+    replaces the CSV's inode, which would leave two processes holding locks on
+    two different files. It is per table, so a keyword write does not block a
+    page write.
+    """
+    path = path_for(root, kind)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    if fcntl is None:  # pragma: no cover - platform dependent
+        yield
+        return
+    with open(path + ".lock", "a+") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
 def read_rows(root: str, kind: str) -> list:
     path = path_for(root, kind)
     if not os.path.exists(path):
         return []
     with open(path, newline="", encoding="utf-8") as fh:
-        return [dict(row) for row in csv.DictReader(fh)]
+        return [{k: unescape_cell(v) for k, v in row.items()} for row in csv.DictReader(fh)]
 
 
 def write_rows(root: str, kind: str, rows: list) -> None:
+    """Write a table in one atomic step.
+
+    The rows go to a temporary file in the same directory and are then moved
+    over the target with ``os.replace``, which is atomic on POSIX and Windows.
+    A reader therefore sees either the whole old table or the whole new one, and
+    an interrupted write cannot leave a half-written keyword bank behind.
+    """
     fields = FILES[kind][1]
     path = path_for(root, kind)
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fields)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({f: row.get(f, "") for f in fields})
+    directory = os.path.dirname(path) or "."
+    os.makedirs(directory, exist_ok=True)
+    tmp = tempfile.NamedTemporaryFile(
+        "w", newline="", encoding="utf-8", dir=directory, prefix=".seodb-", suffix=".tmp", delete=False
+    )
+    try:
+        with tmp:
+            writer = csv.DictWriter(tmp, fieldnames=fields)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({f: escape_cell(row.get(f, "")) for f in fields})
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp.name, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp.name)
+        raise
 
 
 def append_row(root: str, kind: str, row: dict) -> None:
-    rows = read_rows(root, kind)
-    rows.append(row)
-    write_rows(root, kind, rows)
+    with locked(root, kind):
+        rows = read_rows(root, kind)
+        rows.append(row)
+        write_rows(root, kind, rows)
 
 
 def load_project(root: str) -> dict:
@@ -319,52 +551,55 @@ def cmd_init(root: str, args) -> int:
         json.dump(project, fh, ensure_ascii=False, indent=2)
         fh.write("\n")
     for kind in FILES:
-        if not os.path.exists(path_for(root, kind)):
-            write_rows(root, kind, [])
+        with locked(root, kind):
+            if not os.path.exists(path_for(root, kind)):
+                write_rows(root, kind, [])
     print(f"project ready at {root} ({project.get('domain', 'no domain set')})")
     return 0
 
 
 def cmd_kw_add(root: str, args) -> int:
-    rows = read_rows(root, "keywords")
-    if find_keyword(rows, args.keyword):
-        raise UserError(
-            f"«{args.keyword}» is already in the bank — use `kw update` instead of adding a duplicate"
-        )
+    # The whole read-check-write cycle happens under one lock: two subagents
+    # adding keywords at the same time must not each write a table built on the
+    # state from before the other's row existed.
+    with locked(root, "keywords"):
+        rows = read_rows(root, "keywords")
+        if find_keyword(rows, args.keyword):
+            raise UserError(
+                f"«{args.keyword}» is already in the bank — use `kw update` instead of adding a duplicate"
+            )
 
-    near = [
-        (row["keyword"], score)
-        for row in rows
-        if (score := similarity(args.keyword, row.get("keyword", ""))) >= args.similar_threshold
-    ]
-    if near and not args.force:
-        listing = "\n".join(f"    {kw}  (similarity {score:.0%})" for kw, score in sorted(near, key=lambda x: -x[1])[:5])
-        raise UserError(
-            f"«{args.keyword}» looks like an existing keyword:\n{listing}\n"
-            "  Map it to the same cluster/URL, or re-run with --force if it is genuinely distinct."
-        )
+        index = KeywordIndex([r.get("keyword", "") for r in rows], args.similar_threshold)
+        near = [(rows[i]["keyword"], score) for i, score in index.matches(args.keyword)]
+        if near and not args.force:
+            listing = "\n".join(f"    {kw}  (similarity {score:.0%})" for kw, score in sorted(near, key=lambda x: -x[1])[:5])
+            raise UserError(
+                f"«{args.keyword}» looks like an existing keyword:\n{listing}\n"
+                "  Map it to the same cluster/URL, or re-run with --force if it is genuinely distinct."
+            )
 
-    row = {
-        "keyword": args.keyword.strip(),
-        "main_topic": args.topic or "",
-        "search_intent": match_enum("search_intent", args.intent),
-        "search_volume": to_int(args.volume, "") or "",
-        "keyword_difficulty": to_int(args.difficulty, "") or "",
-        "cpc": args.cpc or "",
-        "competition_level": match_enum("competition_level", args.competition),
-        "current_position": to_int(args.position, "") or "",
-        "target_position": to_int(args.target_position, "") or "",
-        "target_url": args.url or "",
-        "content_type": args.content_type or "",
-        "priority": match_enum("priority", args.priority) or "Medium",
-        "status": match_enum("status", args.status) or "New",
-        "last_checked": args.date or (today() if args.position else ""),
-        "cluster": args.cluster or "",
-        "keyword_type": match_enum("keyword_type", args.type) or classify_type(args.keyword),
-        "notes": args.notes or "",
-    }
-    rows.append(row)
-    write_rows(root, "keywords", rows)
+        row = {
+            "keyword": args.keyword.strip(),
+            "main_topic": args.topic or "",
+            "search_intent": match_enum("search_intent", args.intent),
+            "search_volume": to_int(args.volume, "") or "",
+            "keyword_difficulty": to_int(args.difficulty, "") or "",
+            "cpc": args.cpc or "",
+            "competition_level": match_enum("competition_level", args.competition),
+            "current_position": to_int(args.position, "") or "",
+            "target_position": to_int(args.target_position, "") or "",
+            "target_url": args.url or "",
+            "content_type": args.content_type or "",
+            "priority": match_enum("priority", args.priority) or "Medium",
+            "status": match_enum("status", args.status) or "New",
+            "last_checked": args.date or (today() if args.position else ""),
+            "cluster": args.cluster or "",
+            "keyword_type": match_enum("keyword_type", args.type) or classify_type(args.keyword),
+            "notes": args.notes or "",
+        }
+        rows.append(row)
+        write_rows(root, "keywords", rows)
+
     if row["current_position"]:
         append_row(
             root,
@@ -385,6 +620,11 @@ def cmd_kw_add(root: str, args) -> int:
 
 
 def cmd_kw_update(root: str, args) -> int:
+    with locked(root, "keywords"):
+        return _kw_update(root, args)
+
+
+def _kw_update(root: str, args) -> int:
     rows = read_rows(root, "keywords")
     row = find_keyword(rows, args.keyword)
     if row is None:
@@ -426,6 +666,11 @@ def cmd_kw_update(root: str, args) -> int:
 
 def cmd_kw_check(root: str, args) -> int:
     """Record a ranking observation: updates the row *and* appends history."""
+    with locked(root, "keywords"):
+        return _kw_check(root, args)
+
+
+def _kw_check(root: str, args) -> int:
     rows = read_rows(root, "keywords")
     row = find_keyword(rows, args.keyword)
     if row is None:
@@ -493,11 +738,11 @@ def cmd_kw_check(root: str, args) -> int:
 def cmd_kw_search(root: str, args) -> int:
     """Rule: before proposing new content, check whether the keyword exists."""
     rows = read_rows(root, "keywords")
-    scored = sorted(
-        ((similarity(args.term, r.get("keyword", "")), r) for r in rows),
+    index = KeywordIndex([r.get("keyword", "") for r in rows], args.threshold)
+    hits = sorted(
+        ((score, rows[i]) for i, score in index.matches(args.term)),
         key=lambda x: -x[0],
     )
-    hits = [(s, r) for s, r in scored if s >= args.threshold]
     if not hits:
         print(f"no keyword similar to «{args.term}» (threshold {args.threshold:.0%}) — safe to add as new")
         return 0
@@ -562,6 +807,11 @@ def cmd_kw_list(root: str, args) -> int:
 
 
 def cmd_cluster_add(root: str, args) -> int:
+    with locked(root, "clusters"):
+        return _cluster_add(root, args)
+
+
+def _cluster_add(root: str, args) -> int:
     rows = read_rows(root, "clusters")
     existing = next((r for r in rows if normalize(r["cluster"]) == normalize(args.name)), None)
     payload = {
@@ -607,6 +857,11 @@ def cmd_cluster_list(root: str, args) -> int:
 
 
 def cmd_page_add(root: str, args) -> int:
+    with locked(root, "pages"):
+        return _page_add(root, args)
+
+
+def _page_add(root: str, args) -> int:
     rows = read_rows(root, "pages")
     existing = next((r for r in rows if normalize(r["url"]) == normalize(args.url)), None)
     payload = {
@@ -683,25 +938,22 @@ def audit(root: str, stale_days: int = 30, threshold: float = 0.8) -> dict:
                 findings["invalid"].append(f"{row['keyword']}: {field}=«{value}»")
 
     # Near-duplicates pointing at different URLs = planned cannibalization.
-    items = list(keywords)
-    for i, a in enumerate(items):
-        for b in items[i + 1 :]:
-            score = similarity(a.get("keyword", ""), b.get("keyword", ""))
-            if score < threshold:
-                continue
-            url_a, url_b = (a.get("target_url") or "").strip(), (b.get("target_url") or "").strip()
-            if url_a and url_b and normalize(url_a) != normalize(url_b):
-                findings["cannibalization"].append(
-                    {
-                        "type": "planned",
-                        "detail": f"{a['keyword']} -> {url_a}  vs  {b['keyword']} -> {url_b}",
-                        "similarity": score,
-                    }
-                )
-            else:
-                findings["near_duplicates"].append(
-                    {"a": a["keyword"], "b": b["keyword"], "similarity": score}
-                )
+    index = KeywordIndex([r.get("keyword", "") for r in keywords], threshold)
+    for i, j, score in index.pairs():
+        a, b = keywords[i], keywords[j]
+        url_a, url_b = (a.get("target_url") or "").strip(), (b.get("target_url") or "").strip()
+        if url_a and url_b and normalize(url_a) != normalize(url_b):
+            findings["cannibalization"].append(
+                {
+                    "type": "planned",
+                    "detail": f"{a['keyword']} -> {url_a}  vs  {b['keyword']} -> {url_b}",
+                    "similarity": score,
+                }
+            )
+        else:
+            findings["near_duplicates"].append(
+                {"a": a["keyword"], "b": b["keyword"], "similarity": score}
+            )
 
     # Same keyword ranking with more than one URL = live cannibalization.
     by_keyword = {}
@@ -1435,5 +1687,10 @@ def main(argv=None) -> int:
         return 2
 
 
-if __name__ == "__main__":
+def console_main() -> None:
+    """Entry point for the installed `seodb` command (see pyproject.toml)."""
     sys.exit(main())
+
+
+if __name__ == "__main__":
+    console_main()

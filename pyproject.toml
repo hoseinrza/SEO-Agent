@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "seodb"
+version = "0.1.0"
+description = "Keyword database and SEO reporting store for the SEO-Agent fleet"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "AmirHossein Rezazadeh" }]
+keywords = ["seo", "keyword-research", "rank-tracking", "persian"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Other Audience",
+    "Natural Language :: Persian",
+    "Programming Language :: Python :: 3",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+]
+# Deliberately empty and staying that way: seodb is standard-library only, so a
+# clone runs it with nothing installed. See CLAUDE.md.
+dependencies = []
+
+[project.scripts]
+seodb = "seodb:console_main"
+
+[project.urls]
+Homepage = "https://github.com/hoseinrza/SEO-Agent"
+
+[tool.setuptools]
+package-dir = { "" = "scripts" }
+py-modules = ["seodb"]
