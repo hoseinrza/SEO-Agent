@@ -131,6 +131,9 @@ python3 scripts/seodb.py --project projects/<slug> report full --out auto
 
 - پروژه‌ها در `projects/<slug>/` — هر پروژه یک بانک کیورد مستقل.
 - گزارش‌های تولیدشده در `projects/<slug>/reports/YYYY-MM-DD-<kind>.md`.
+- **brief مقاله‌ها در `projects/<slug>/content/NN-<keyword-slug>.md`** — یک فایل به‌ازای هر
+  مقاله، خروجی نهایی فاز ۵. قالبش در `docs/workflow.md` است.
+- گردش کار کامل هفت‌فازی: `docs/workflow.md` · راهنمای JSON-LD: `docs/schema-guide.md`.
 - `scripts/seodb.py` فقط کتابخانه‌ی استاندارد پایتون است؛ وابستگی خارجی به آن اضافه نکن.
 - تغییر در اسکیمای دیتابیس باید در `.claude/skills/keyword-database/SKILL.md` هم به‌روز شود.
 - تست‌ها: `python3 -m unittest discover -s tests -v`
