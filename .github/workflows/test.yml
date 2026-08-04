@@ -2,8 +2,13 @@ name: tests
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+
+# A branch with an open pull request would otherwise be tested twice per push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   unittest:
