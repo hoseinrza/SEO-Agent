@@ -1,7 +1,7 @@
 # SEO-Agent — راهنمای کاری مخزن
 
 این مخزن یک **ناوگان ایجنت سئو** برای Claude Code است: یک ایجنت مدیر (`seo-manager`) و
-هشت ساب‌ایجنت تخصصی، به‌همراه یک بانک داده‌ی کیورد که با CLI اجرا می‌شود.
+هجده ساب‌ایجنت تخصصی، به‌همراه یک بانک داده‌ی کیورد که با CLI اجرا می‌شود.
 
 ## نقش پیش‌فرض تو در این مخزن
 
@@ -13,26 +13,67 @@
 
 ## ساب‌ایجنت‌ها و زمان استفاده
 
+**مدیر** — نقطه‌ی ورود هر درخواست چندتخصصی:
+
 | ایجنت | مسئولیت | چه وقت صدا بزن |
 | --- | --- | --- |
 | `seo-manager` | مالکیت کل پروژه، ارکستراسیون ۶ مرحله‌ای، گزارش نهایی | درخواست چندتخصصی یا «سئوی سایت را بررسی کن» |
-| `technical-seo-auditor` | crawl، index، redirect، robots، sitemap، CWV، schema، JS rendering | Step 2 و هر مشکل فنی |
-| `onpage-seo-analyst` | title، meta، heading، intent، internal link، خوانایی، تصاویر | بررسی صفحه‌به‌صفحه |
-| `keyword-researcher` | کشف کیورد، clustering، topic map، search intent | Step 3 و هر کیورد جدید |
-| `competitor-analyst` | کیوردهای رقبا، shared/missing، content gap، بک‌لینک | Step 4 |
-| `content-strategist` | تقویم محتوا، brief نویسنده، ساختار مقاله، FAQ schema | برنامه‌ی محتوا |
+
+**تحلیل** — مشکل را پیدا می‌کنند، اصلاح نمی‌کنند:
+
+| ایجنت | مسئولیت | چه وقت صدا بزن |
+| --- | --- | --- |
+| `seo-specialist` | crawl، index، redirect، robots، sitemap، schema، JS rendering، title، meta، heading، internal link | Step 2 و هر مشکل فنی یا on-page |
+| `search-specialist` | کشف کیورد، clustering، topic map، search intent، بررسی SERP | Step 3 و هر کیورد جدید |
+| `competitive-analyst` | کیوردهای رقبا، shared/missing، content gap، بک‌لینک | Step 4 |
+| `performance-engineer` | Core Web Vitals: LCP، CLS، INP، TTFB | «سایت کند است»، هر مشکل سرعت |
+| `accessibility-tester` | HTML معنایی، heading، alt، لینک، کیبورد، WCAG | مشکلات ساختاری مؤثر بر سئو |
+| `data-analyst` | تحلیل export سرچ کنسول و GA4، ثبت رتبه‌ها در بانک | وقتی داده‌ی اندازه‌گیری‌شده در دست است |
+
+**محتوا:**
+
+| ایجنت | مسئولیت | چه وقت صدا بزن |
+| --- | --- | --- |
+| `content-strategist` | تقویم محتوا، brief نویسنده، ساختار مقاله، FAQ schema | برنامه‌ریزی محتوای جدید |
+| `content-quality-editor` | کیفیت، EEAT، عمق در برابر رقبا، محتوای نازک | نقد محتوای موجود یا پیش‌نویس |
+
+**اصلاح** — فقط بعد از تحلیل و با تایید کاربر:
+
+| ایجنت | مسئولیت | چه وقت صدا بزن |
+| --- | --- | --- |
+| `frontend-developer` | HTML، meta، canonical، JSON-LD، رندر سمت کلاینت | یافته‌ی سئو که باید در فرانت‌اند اصلاح شود |
+| `backend-developer` | SSR، کد وضعیت، redirect، sitemap، TTFB | یافته‌ی سئو که باید در سرور اصلاح شود |
+| `wordpress-master` | Yoast/RankMath، permalink، آرشیو، ووکامرس | فقط وقتی تایید شده سایت وردپرسی است |
+
+**Off-page، داده و گزارش:**
+
+| ایجنت | مسئولیت | چه وقت صدا بزن |
+| --- | --- | --- |
 | `link-building-analyst` | کیفیت بک‌لینک، DA، spam score، فرصت‌های لینک | Off-page |
-| `keyword-db-manager` | نگهداری بانک کیورد، تاریخچه رتبه، cannibalization | هر نوشتن/خواندن دیتابیس |
-| `seo-reporter` | تولید گزارش‌ها، Weekly Monitoring، Roadmap | خروجی‌گرفتن |
+| `keyword-db-manager` | نگهداری بانک کیورد، تاریخچه رتبه، cannibalization | هر نوشتن/خواندن سنگین روی دیتابیس |
+| `technical-writer` | تولید گزارش‌ها، Weekly Monitoring، Roadmap | خروجی‌گرفتن |
+| `knowledge-synthesizer` | ادغام یافته‌های چند ایجنت، حل تناقض | وقتی ۳ ایجنت یا بیشتر گزارش داده‌اند |
+
+**متا** — روی خود ناوگان کار می‌کنند، نه روی سایت:
+
+| ایجنت | مسئولیت | چه وقت صدا بزن |
+| --- | --- | --- |
+| `workflow-orchestrator` | طراحی ترتیب و وابستگی مراحل | پروژه‌ی غیراستاندارد که ۶ مرحله جوابش نیست |
+| `task-distributor` | تقسیم کار حجیم به batch | صدها صفحه یا هزاران کیورد |
+| `prompt-engineer` | بهبود تعریف خود ایجنت‌ها | «ایجنت اشتباه صدا زده می‌شود» |
 
 ## Workflow استاندارد پروژه
 
 1. **جمع‌آوری اطلاعات** — URL، حوزه کاری، کشور هدف، زبان، رقبا، اهداف کسب‌وکار
-2. **Technical Audit** → `technical-seo-auditor`
-3. **Keyword Research** → `keyword-researcher` (خروجی مستقیم در بانک کیورد ثبت می‌شود)
-4. **Competitor Analysis** → `competitor-analyst`
-5. **SEO Roadmap** → `seo-manager` + `seo-reporter`
-6. **Weekly Monitoring** → `seo-reporter`
+2. **Technical & On-page Audit** → `seo-specialist` (+ `performance-engineer`، `accessibility-tester`)
+3. **Keyword Research** → `search-specialist` (خروجی مستقیم در بانک کیورد ثبت می‌شود)
+4. **Competitor Analysis** → `competitive-analyst`
+5. **Content & Links** → `content-strategist`، `content-quality-editor`، `link-building-analyst`
+6. **Report & Roadmap** → `technical-writer` (+ `knowledge-synthesizer`)
+
+**تحلیل و اصلاح دو کار جدااند.** ایجنت‌های توسعه (`frontend-developer`، `backend-developer`،
+`wordpress-master`) فقط بعد از اینکه تحلیل مشکل را مشخص کرد و کاربر تایید کرد وارد می‌شوند.
+هرگز کد را بر اساس حدس عوض نکن.
 
 مرحله ۱ را نپر: بدون دامنه، کشور و زبان هدف، تحلیل کیورد بی‌معنی است. اگر کاربر این‌ها را
 نداده، بپرس — مگر اینکه `project.json` پروژه از قبل آن‌ها را داشته باشد.

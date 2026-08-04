@@ -4,12 +4,12 @@ An intelligent SEO management agent that performs website audits, builds keyword
 analyzes competitors, and generates actionable SEO reports.
 
 یک ناوگان ایجنت سئو برای Claude Code: یک **SEO Manager** که پروژه را می‌گرداند،
-هشت **ساب‌ایجنت تخصصی**، و یک **بانک کیورد** که قوانینش با کد اجرا می‌شود، نه با توصیه.
+هجده **ساب‌ایجنت تخصصی**، و یک **بانک کیورد** که قوانینش با کد اجرا می‌شود، نه با توصیه.
 
 ## چه چیزی داخل مخزن است
 
 ```
-.claude/agents/      ۹ ایجنت — مدیر + متخصص‌ها
+.claude/agents/      ۱۹ ایجنت — مدیر + متخصص‌ها
 .claude/skills/      دانش مشترک: روش audit، اسکیمای دیتابیس، قالب گزارش‌ها
 scripts/seodb.py     CLI بانک کیورد (فقط stdlib پایتون)
 projects/            هر پروژه یک بانک کیورد مستقل
@@ -31,29 +31,51 @@ CLAUDE.md            نقش پیش‌فرض و قوانین غیرقابل‌م�
 - **ستون خالی یعنی «هنوز داده‌اش را نداریم»، نه اینکه ابزار خراب است.** طبق قانون
   «داده‌ی ساختگی ممنوع» در `CLAUDE.md`، ایجنت‌ها حق ندارند این ستون‌ها را با عدد حدسی پر کنند؛
   به‌جایش در گزارش می‌نویسند `source: needed`.
-- **کاری روی خود سایت انجام نمی‌دهد** — نه فایلی را تغییر می‌دهد، نه redirect می‌سازد،
-  نه محتوایی منتشر می‌کند. خروجی‌اش تحلیل و برنامه است، نه اجرا.
+- **`seodb` هیچ تغییری روی سایت نمی‌دهد** — یک انبار داده‌ی CSV است، نه یک deploy tool.
 
 خود ایجنت‌ها (نه `seodb`) وقتی در Claude Code اجرا می‌شوند به `WebFetch`/`WebSearch` دسترسی
 دارند و می‌توانند صفحه‌ای را بخوانند یا SERP را ببینند؛ اما اگر در محیطی بدون شبکه اجرا شوند،
 موظف‌اند صریحاً بگویند چه چیزی را نتوانسته‌اند بررسی کنند.
 
+**درباره‌ی تغییر کد:** ایجنت‌های `frontend-developer`، `backend-developer` و
+`wordpress-master` **می‌توانند** فایل‌های پروژه‌ات را تغییر دهند. آن‌ها فقط بعد از اینکه
+ایجنت تحلیل مشکل را مشخص کرد و تو تایید کردی وارد می‌شوند، و موظف‌اند قبل از هر تغییری که
+روی URLها اثر دارد هشدار بدهند و نقشه‌ی 301 بنویسند. اگر نمی‌خواهی چیزی تغییر کند، صریح
+بگو «فقط تحلیل کن».
+
 ## ایجنت‌ها
 
 | ایجنت | مسئولیت |
 | --- | --- |
-| `seo-manager` | مالک پروژه، Workflow شش‌مرحله‌ای، اولویت‌بندی، گزارش نهایی |
-| `technical-seo-auditor` | crawl، index، redirect، CWV، schema، JS rendering + SEO Health Score |
-| `onpage-seo-analyst` | title، meta، heading، intent match، internal link، خوانایی |
-| `keyword-researcher` | کشف کیورد، search intent، clustering، topic map |
-| `competitor-analyst` | کیوردهای مشترک/مفقود، content gap، الگوی رقبا |
+| **`seo-manager`** | مالک پروژه، Workflow شش‌مرحله‌ای، اولویت‌بندی، گزارش نهایی |
+| `seo-specialist` | crawl، index، redirect، schema، JS rendering، title، meta، heading + SEO Health Score |
+| `search-specialist` | کشف کیورد، search intent، clustering، topic map، بررسی SERP |
+| `competitive-analyst` | کیوردهای مشترک/مفقود، content gap، الگوی رقبا |
+| `performance-engineer` | Core Web Vitals: LCP، CLS، INP، TTFB |
+| `accessibility-tester` | HTML معنایی، heading، alt، ناوبری کیبورد، WCAG |
+| `data-analyst` | تحلیل export سرچ کنسول و GA4 و ثبتشان در بانک |
 | `content-strategist` | تقویم محتوا، brief نویسنده، ساختار مقاله، FAQ schema |
+| `content-quality-editor` | کیفیت محتوا، EEAT، عمق در برابر صفحات رتبه‌دار |
+| `frontend-developer` | اصلاح HTML، meta، canonical، JSON-LD، رندر کلاینت |
+| `backend-developer` | اصلاح SSR، کد وضعیت، redirect، sitemap، TTFB |
+| `wordpress-master` | Yoast/RankMath، permalink، آرشیو، ووکامرس |
 | `link-building-analyst` | کیفیت بک‌لینک، ریسک‌ها، فرصت‌های لینک، outreach |
 | `keyword-db-manager` | نگهبان بانک کیورد و تاریخچه‌ی رتبه |
-| `seo-reporter` | گزارش عملکرد، مانیتورینگ هفتگی، Roadmap |
+| `technical-writer` | گزارش عملکرد، مانیتورینگ هفتگی، Roadmap |
+| `knowledge-synthesizer` | ادغام یافته‌های چند ایجنت و حل تناقض |
+| `workflow-orchestrator` · `task-distributor` · `prompt-engineer` | متا: طراحی مسیر، تقسیم کار حجیم، بهبود خود ایجنت‌ها |
 
 Claude بر اساس درخواست، ایجنت مناسب را انتخاب می‌کند. می‌توانی صریح هم بگویی:
-«با `technical-seo-auditor` سایت را بررسی کن».
+«با `seo-specialist` سایت را بررسی کن».
+
+**تحلیل و اصلاح جدا هستند:** ایجنت‌های تحلیل مشکل را پیدا می‌کنند و ایجنت‌های توسعه فقط
+بعد از تایید تو آن را اصلاح می‌کنند — هیچ تغییری بر اساس حدس روی کد اعمال نمی‌شود.
+
+ایجنت‌های عمومی (توسعه، performance، accessibility، گزارش و متا) از
+[VoltAgent/awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents)
+(مجوز MIT) گرفته و با قوانین این مخزن تطبیق داده شده‌اند: وابستگی به `context-manager` حذف
+شده، ارجاع به بانک کیورد و قانون «داده‌ی ساختگی ممنوع» اضافه شده، چک‌لیست‌های عمومی هرس
+شده، و دانش تخصصی هر ایجنت زیر خط `## مرجع تخصصی` نگه داشته شده است.
 
 ## نصب
 

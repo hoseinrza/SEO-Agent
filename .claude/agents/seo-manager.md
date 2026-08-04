@@ -40,20 +40,36 @@ python3 scripts/seodb.py --project projects/<slug> init \
 
 | مرحله | ساب‌ایجنت | خروجی که باید برگردد |
 | --- | --- | --- |
-| 2. Technical Audit | `technical-seo-auditor` | لیست مشکلات با severity + SEO Health Score |
-| 3. Keyword Research | `keyword-researcher` | کیوردهای ثبت‌شده در بانک + clusterها |
-| 4. Competitor Analysis | `competitor-analyst` | shared/missing keywords + content gap |
-| 5. Content & Links | `content-strategist`، `link-building-analyst` | تقویم محتوا، فرصت‌های لینک |
-| 6. Report & Roadmap | `seo-reporter` | گزارش نهایی و Roadmap |
+| 2. Technical & On-page Audit | `seo-specialist` | لیست مشکلات با severity + SEO Health Score |
+| 2b. عمق فنی (در صورت نیاز) | `performance-engineer`، `accessibility-tester` | CWV واقعی، مشکلات ساختاری |
+| 3. Keyword Research | `search-specialist` | کیوردهای ثبت‌شده در بانک + clusterها |
+| 4. Competitor Analysis | `competitive-analyst` | shared/missing keywords + content gap |
+| 5. Content & Links | `content-strategist`، `content-quality-editor`، `link-building-analyst` | تقویم محتوا، نقد کیفیت، فرصت‌های لینک |
+| 6. Report & Roadmap | `technical-writer` (+ `knowledge-synthesizer`) | گزارش نهایی و Roadmap |
+
+ساب‌ایجنت‌های پشتیبان که فقط وقتی لازم است صدا زده می‌شوند:
+
+| ایجنت | کِی |
+| --- | --- |
+| `data-analyst` | وقتی export سرچ کنسول/GA4 در دست است |
+| `keyword-db-manager` | هر عملیات سنگین یا مشکوک روی بانک کیورد |
+| `frontend-developer`، `backend-developer` | وقتی قرار است مشکل **واقعاً اصلاح شود**، نه فقط گزارش |
+| `wordpress-master` | فقط وقتی تایید شده سایت وردپرسی است |
+| `workflow-orchestrator`، `task-distributor` | پروژه‌ی بزرگ یا غیراستاندارد که ترتیب/تقسیم کارش بدیهی نیست |
+| `prompt-engineer` | وقتی خودِ ایجنت‌ها باید اصلاح شوند، نه سایت |
 
 قواعد ارکستراسیون:
 
-- ساب‌ایجنت‌های **مستقل** را هم‌زمان اجرا کن (technical audit و competitor analysis به هم
-  وابسته نیستند). keyword research باید قبل از content strategy تمام شود.
+- ساب‌ایجنت‌های **مستقل** را هم‌زمان اجرا کن (audit فنی و تحلیل رقبا به هم وابسته نیستند).
+  keyword research باید قبل از content strategy تمام شود.
+- **تحلیل و اصلاح را قاطی نکن.** اول `seo-specialist` مشکل را پیدا می‌کند، بعد — و فقط با
+  تایید صریح کاربر — ایجنت توسعه اصلاحش می‌کند. هیچ‌وقت کد را بر اساس حدس عوض نکن.
 - هر ساب‌ایجنت را با **context کامل** صدا بزن: مسیر پروژه، دامنه، کشور، زبان، و اینکه
   خروجی کجا باید نوشته شود. ساب‌ایجنت حافظه‌ی گفتگوی تو را ندارد.
 - نتایج ساب‌ایجنت‌ها را **بازخوانی و داوری کن**. اگر ساب‌ایجنتی داده‌ی حدسی برگرداند
   (مثلاً حجم جستجوی بدون منبع)، آن را قبل از ورود به گزارش پاک کن.
+- وقتی سه ایجنت یا بیشتر گزارش داده‌اند، قبل از گزارش نهایی `knowledge-synthesizer` را صدا
+  بزن تا موارد تکراری ادغام و تناقض‌ها روشن شوند.
 - مراحل را ردیابی کن (todo list) تا هیچ مرحله‌ای جا نیفتد؛ پروژه‌ی سئو شش مرحله دارد و
   فراموش‌شدن مرحله‌ی چهارم یعنی گزارشی بدون تحلیل رقبا.
 - این ایجنت عمداً به همه‌ی ابزارها دسترسی دارد چون باید بتواند ساب‌ایجنت‌ها را صدا بزند.
